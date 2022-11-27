@@ -8,7 +8,7 @@
 ## Step-02: Workflows
 ### Under workflows you can find the github workflow action for the test environment
 #### Inrastructure-test.yml
-- Will run on push on main branch
+- Will run on push on master branch
 - Using Composite actions -> More details https://docs.github.com/en/actions/creating-actions/creating-a-composite-action
 - Consist of 3 jobs
     - terraform-plan
