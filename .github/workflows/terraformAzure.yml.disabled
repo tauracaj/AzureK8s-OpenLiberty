@@ -1,0 +1,52 @@
+ name: 'Terraform GitHub Actions'
+ defaults:
+   run:
+     working-directory: "RepoFiles/terraform-manifests-aks/"
+ on:
+   - pull_request
+   - push
+ jobs:
+   terraform:
+     name: 'Terraform'
+     runs-on: ubuntu-latest
+
+
+     env:
+       TF_VAR_client_id: ${{ secrets.TF_VAR_client_id }} 
+       TF_VAR_client_secret: ${{ secrets.TF_VAR_client_secret }} 
+       TF_VAR_subscription_id: ${{ secrets.TF_VAR_subscription_id }}
+       TF_VAR_tenant_id: ${{ secrets.TF_VAR_tenant_id }} 
+       TF_VAR_ssh_public_key : ${{ secrets.TF_SSH }} 
+       TF_VAR_environment: ${{ secrets.TF_ENVIRONMENT }} 
+
+     steps:
+       # - name: 'Checkout'
+       - uses: actions/checkout@main
+       - name: Export Azure Login Credentials
+         run: |
+           echo "ARM_CLIENT_ID=${{ secrets.TF_VAR_client_id }}" >> $GITHUB_ENV
+           echo "ARM_CLIENT_SECRET=${{ secrets.TF_VAR_client_secret }}" >> $GITHUB_ENV
+           echo "ARM_SUBSCRIPTION_ID=${{ secrets.TF_VAR_subscription_id }}" >> $GITHUB_ENV
+           echo "ARM_TENANT_ID=${{ secrets.TF_VAR_tenant_id }}" >> $GITHUB_ENV       
+       - name: 'Terraform Init'
+         # uses: hashicorp/terraform-github-actions@master
+         id: init
+         run: terraform init
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       - name: Terraform Validate
+         id: validate
+         run: terraform validate 
+
+       - name: Terraform Plan
+         id: plan
+         run: terraform plan 
+         continue-on-error: false    
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       - name: Terraform APPLY
+         id: Apply
+         run: terraform apply -auto-approve 
+         continue-on-error: false    
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        

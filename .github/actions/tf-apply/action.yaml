@@ -1,0 +1,55 @@
+name: Terraform Apply
+description: Create a terraform plan to review.
+inputs:
+  terraform_version:
+    description: The version of terraform to use
+    required : true
+  terraform_environment:
+    description: The environment folder name that contains the root of the terraform to plan.
+    required : true
+  terraform_additional_arguments:
+    description: Additional arguments that should be appended to the terraform apply
+    required: false
+  azure_creds:
+    description: The credentials to use with Azure login.
+    required: true
+outputs:
+  resource_group_name: 
+    description: "Name of RG"
+    value: ${{ steps.tf_apply.outputs.RESOURCE_GROUP_NAME }}
+  aks_cluster_name: 
+    description: "AKS NAME"
+    value: ${{ steps.tf_apply.outputs.AKS_CLUSTER_NAME }}    
+runs:
+  using: "composite"
+  steps:
+    - uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: ${{ inputs.terraform_version }}
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ inputs.azure_creds }}
+    
+    - name: Terraform Init
+      run: terraform init -input=false
+      shell: pwsh
+      working-directory:  Infrastructure/env/${{ inputs.terraform_environment }} 
+
+    - name: Terraform Apply
+      id: tf_apply      
+      shell: pwsh
+      working-directory: Infrastructure/env/${{ inputs.terraform_environment }} 
+      run: |
+          terraform apply -auto-approve -no-color -input=false ${{ inputs.terraform_additional_arguments }}
+          #echo "Output1"
+          #export RESOURCE_GROUP_NAME=$(terraform output -raw resource_group_name)
+          #export AKS_CLUSTER_NAME=$(terraform output -raw aks_cluster_name) 
+          #echo ${RESOURCE_GROUP_NAME}
+          #echo ${AKS_CLUSTER_NAME}
+          #echo "resource_group_name=${RESOURCE_GROUP_NAME}" >> $GITHUB_OUTPUT
+          #echo "aks_cluster_name=${AKS_CLUSTER_NAME}" >> $GITHUB_OUTPUT
+          # | grep .net | grep -v “::” | sed -e 's/"//g'
+          
+        

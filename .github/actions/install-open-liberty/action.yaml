@@ -1,0 +1,40 @@
+name: OpenLiberty
+description: Installs Open Liberty Operator on AKS.
+inputs:
+  resource_group:
+    description: The name of the resource group that contains the AKS. 
+    required : true
+  cluster_name:
+    description: "The name of the AKS"
+  azure_creds:
+    description: The credentials to use with Azure login.
+    required: true
+  operator_version:
+    description: The version of the operator.
+    required: true    
+runs:
+  using: "composite"
+  steps:
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ inputs.azure_creds }}
+    
+    - id: setup_open_liberty
+      name: Setup Open Liberty
+      shell: bash
+      run: |
+        #Configure kubectl to connect to your Kubernetes cluster
+        az aks get-credentials --resource-group ${{ inputs.resource_group }} --name ${{ inputs.cluster_name }} --overwrite-existing --admin
+        # Install Open Liberty Operator
+        export OPERATOR_VERSION=${{ inputs.operator_version }}
+        mkdir -p overlays/watch-all-namespaces 
+        wget https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/main/deploy/releases/${OPERATOR_VERSION}/kustomize/overlays/watch-all-namespaces/olo-all-namespaces.yaml -q -P ./overlays/watch-all-namespaces
+        wget https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/main/deploy/releases/${OPERATOR_VERSION}/kustomize/overlays/watch-all-namespaces/cluster-roles.yaml -q -P ./overlays/watch-all-namespaces
+        wget https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/main/deploy/releases/${OPERATOR_VERSION}/kustomize/overlays/watch-all-namespaces/kustomization.yaml -q -P ./overlays/watch-all-namespaces
+        mkdir base
+        wget https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/main/deploy/releases/${OPERATOR_VERSION}/kustomize/base/kustomization.yaml -q -P ./base
+        wget https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/main/deploy/releases/${OPERATOR_VERSION}/kustomize/base/open-liberty-crd.yaml -q -P ./base
+        wget https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/main/deploy/releases/${OPERATOR_VERSION}/kustomize/base/open-liberty-operator.yaml -q -P ./base
+        kubectl apply -k overlays/watch-all-namespaces
+        

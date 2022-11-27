@@ -1,0 +1,96 @@
+name: Infrastructure TST
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'Infrastructure/env/tst/**'
+      - 'Infrastructure/modules/**'
+      - '.github/workflows/infrastructure-tst.yml'
+  workflow_dispatch:
+
+env:
+  TF_VERSION: 1.3.5  
+  TF_VAR_environment: tst
+  TF_ENV: tst 
+
+jobs:
+  terraform-plan:
+    environment: TEST-Infra
+    runs-on: ubuntu-latest
+
+    env:
+      ARM_CLIENT_ID: ${{ secrets.TF_VAR_client_id }}
+      ARM_CLIENT_SECRET: ${{ secrets.TF_VAR_client_secret }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.TF_VAR_subscription_id }}
+      ARM_TENANT_ID: ${{ secrets.TF_VAR_tenant_id }}
+      TF_VAR_ssh_public_key : ${{ secrets.TF_SSH }} 
+      TF_IN_AUTOMATION: true
+      azure_creds: '{"clientId":"${{ secrets.TF_VAR_client_id }}","clientSecret":"${{ secrets.TF_VAR_client_secret }}","subscriptionId":"${{ secrets.TF_VAR_subscription_id }}","tenantId":"${{ secrets.TF_VAR_tenant_id }}"}'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Terraform Plan
+      uses: ./.github/actions/tf-plan
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        terraform_environment: ${{ env.TF_VAR_environment }}
+        #terraform_additional_arguments: "-var 'acr_id=${{ steps.get_acr.outputs.id }}'" 
+        azure_creds: '{"clientId":"${{ secrets.TF_VAR_client_id }}","clientSecret":"${{ secrets.TF_VAR_client_secret }}","subscriptionId":"${{ secrets.TF_VAR_subscription_id }}","tenantId":"${{ secrets.TF_VAR_tenant_id }}"}'
+
+  terraform-apply:
+    needs: terraform-plan
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    environment: TEST-Infra
+    concurrency: TEST-Infra
+    runs-on: ubuntu-latest
+
+    env:
+      ARM_CLIENT_ID: ${{ secrets.TF_VAR_client_id }}
+      ARM_CLIENT_SECRET: ${{ secrets.TF_VAR_client_secret }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.TF_VAR_subscription_id }}
+      ARM_TENANT_ID: ${{ secrets.TF_VAR_tenant_id }}
+      TF_VAR_ssh_public_key : ${{ secrets.TF_SSH }} 
+      TF_IN_AUTOMATION: true
+      azure_creds: '{"clientId":"${{ secrets.TF_VAR_client_id }}","clientSecret":"${{ secrets.TF_VAR_client_secret }}","subscriptionId":"${{ secrets.TF_VAR_subscription_id }}","tenantId":"${{ secrets.TF_VAR_tenant_id }}"}'
+
+    steps:
+    - uses: actions/checkout@v2 
+
+    - name: Terraform Apply
+      id: terraform-apply      
+      uses: ./.github/actions/tf-apply
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        terraform_environment: ${{ env.TF_VAR_environment }}
+        terraform_additional_arguments: "-var 'ssh_public_key=${{ secrets.TF_SSH }}'"
+        terraform_wrapper: false
+        #terraform_additional_arguments: "-var 'acr_id=${{ steps.get_acr.outputs.id }}'" 
+        azure_creds: '{"clientId":"${{ secrets.TF_VAR_client_id }}","clientSecret":"${{ secrets.TF_VAR_client_secret }}","subscriptionId":"${{ secrets.TF_VAR_subscription_id }}","tenantId":"${{ secrets.TF_VAR_tenant_id }}"}'
+  
+
+  install-openliberty:
+    needs: terraform-apply
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    environment: TEST-Infra
+    concurrency: TEST-Infra
+    runs-on: ubuntu-latest
+
+    env:
+      ARM_CLIENT_ID: ${{ secrets.TF_VAR_client_id }}
+      ARM_CLIENT_SECRET: ${{ secrets.TF_VAR_client_secret }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.TF_VAR_subscription_id }}
+      ARM_TENANT_ID: ${{ secrets.TF_VAR_tenant_id }}
+      azure_creds: '{"clientId":"${{ secrets.TF_VAR_client_id }}","clientSecret":"${{ secrets.TF_VAR_client_secret }}","subscriptionId":"${{ secrets.TF_VAR_subscription_id }}","tenantId":"${{ secrets.TF_VAR_tenant_id }}"}'
+
+    steps:
+    - uses: actions/checkout@v2 
+    
+    - name: Install Open Liberty
+      uses: ./.github/actions/install-open-liberty
+      with:
+        resource_group: "ne-aks-rg-tst"
+        cluster_name: "ne-aks-tst"
+        azure_creds: '{"clientId":"${{ secrets.TF_VAR_client_id }}","clientSecret":"${{ secrets.TF_VAR_client_secret }}","subscriptionId":"${{ secrets.TF_VAR_subscription_id }}","tenantId":"${{ secrets.TF_VAR_tenant_id }}"}'        
+        operator_version: 0.8.2
