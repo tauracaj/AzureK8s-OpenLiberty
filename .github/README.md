@@ -1,4 +1,4 @@
-# Provision Azure AKS using Terraform & Azure DevOps
+# Provision Azure AKS using Terraform & Git Actions
 
 ## Step-01: Introduction
 - Create GitHub Action to create AKS cluster using Terraform for Open Liberty App 
